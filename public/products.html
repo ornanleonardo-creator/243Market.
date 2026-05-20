@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Produits — 243Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/style.css"/>
+  <style>
+    .page-wrap { padding-top: 64px; min-height: 100vh; }
+    .page-header { background: var(--card); border-bottom: 1px solid var(--border); padding: 1.5rem; }
+    .page-title  { font-size: 1.5rem; font-weight: 700; }
+    .sidebar-layout { display: grid; grid-template-columns: 220px 1fr; gap: 1.5rem; padding: 1.5rem; max-width: 1300px; margin: 0 auto; }
+    .sidebar { position: sticky; top: 80px; align-self: start; }
+    .sidebar h4 { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--neon); margin: 1.2rem 0 0.6rem; }
+    .sidebar h4:first-child { margin-top: 0; }
+    .sidebar-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.75rem; border-radius: 4px; cursor: pointer; transition: background 0.15s; font-size: 0.95rem; font-weight: 600; color: var(--muted); }
+    .sidebar-item:hover, .sidebar-item.active { background: rgba(0,229,255,0.06); color: var(--neon); }
+    .search-box { position: relative; margin-bottom: 1rem; }
+    .search-box input { width: 100%; padding: 0.6rem 2.2rem 0.6rem 0.9rem; background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 6px; font-family: 'Rajdhani'; font-size: 0.95rem; }
+    .search-box input:focus { outline: none; border-color: var(--neon); }
+    .sort-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2rem; }
+    .sort-bar span { color: var(--muted); font-size: 0.9rem; }
+    .sort-select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.8rem; border-radius: 4px; font-family: 'Rajdhani'; }
+    .load-more { text-align: center; margin-top: 2rem; }
+    @media (max-width: 768px) {
+      .sidebar-layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+      .sidebar h4 { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="/index.html" class="nav-logo">243<span>MARKET</span></a>
+  <ul class="nav-links">
+    <li><a href="/products.html" class="active">Produits</a></li>
+    <li><a href="/cart.html">Panier</a></li>
+  </ul>
+  <div class="nav-actions">
+    <a href="/cart.html" class="btn btn-outline btn-sm">🛒 <span class="cart-count">0</span></a>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header container">
+    <div class="page-title">🎮 Tous les produits</div>
+  </div>
+
+  <div class="sidebar-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Rechercher…" oninput="debounceSearch()"/>
+      </div>
+
+      <h4>Catégorie</h4>
+      <div class="sidebar-item active" data-cat="all" onclick="selectCat(this, 'all')">🎮 Tous</div>
+      <div class="sidebar-item" data-cat="ps5"         onclick="selectCat(this, 'ps5')">🕹 PlayStation 5</div>
+      <div class="sidebar-item" data-cat="ps4"         onclick="selectCat(this, 'ps4')">🎯 PlayStation 4</div>
+      <div class="sidebar-item" data-cat="ps3"         onclick="selectCat(this, 'ps3')">👾 PlayStation 3</div>
+      <div class="sidebar-item" data-cat="iphone"      onclick="selectCat(this, 'iphone')">📱 iPhone</div>
+      <div class="sidebar-item" data-cat="nintendo"    onclick="selectCat(this, 'nintendo')">🎰 Nintendo</div>
+      <div class="sidebar-item" data-cat="accessoires" onclick="selectCat(this, 'accessoires')">🔌 Accessoires</div>
+
+      <h4>Badge</h4>
+      <div class="sidebar-item" data-badge="new"  onclick="selectBadge(this,'new')">✨ Nouveauté</div>
+      <div class="sidebar-item" data-badge="sale" onclick="selectBadge(this,'sale')">🔥 Promo</div>
+    </aside>
+
+    <!-- Main -->
+    <main>
+      <div class="sort-bar">
+        <span id="resultCount">Chargement…</span>
+        <select class="sort-select" id="sortSelect" onchange="loadProducts()">
+          <option value="newest">Plus récents</option>
+          <option value="price-asc">Prix croissant</option>
+          <option value="price-desc">Prix décroissant</option>
+          <option value="popular">Populaires</option>
+        </select>
+      </div>
+      <div class="products-grid" id="productsGrid">
+        <div style="text-align:center;padding:3rem;color:var(--muted);grid-column:1/-1;">Chargement…</div>
+      </div>
+      <div class="load-more">
+        <button class="btn btn-outline hidden" id="loadMoreBtn" onclick="loadMore()">Charger plus</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/app.js"></script>
+<script>
+  let currentCat   = 'all';
+  let currentBadge = '';
+  let currentPage  = 1;
+  let searchTimer;
+
+  // Read URL param
+  const urlCat = new URLSearchParams(location.search).get('cat');
+  if (urlCat) {
+    currentCat = urlCat;
+    document.querySelectorAll('.sidebar-item[data-cat]').forEach(el => {
+      el.classList.toggle('active', el.dataset.cat === urlCat);
+    });
+  }
+
+  async function loadProducts(reset = true) {
+    if (reset) currentPage = 1;
+    const sort   = document.getElementById('sortSelect').value;
+    const search = document.getElementById('searchInput').value.trim();
+    const cat    = currentCat === 'all' ? '' : currentCat;
+
+    let qs = `?page=${currentPage}&limit=16&sort=${sort}`;
+    if (cat)          qs += `&category=${cat}`;
+    if (search)       qs += `&search=${encodeURIComponent(search)}`;
+    if (currentBadge) qs += `&badge=${currentBadge}`;
+
+    const { ok, data } = await apiRequest(`/products${qs}`);
+    if (!ok) return;
+
+    const grid = document.getElementById('productsGrid');
+    const html = data.products.map(buildProductCard).join('');
+
+    if (reset) {
+      grid.innerHTML = html || '<div style="text-align:center;padding:3rem;color:var(--muted);grid-column:1/-1;">Aucun produit trouvé.</div>';
+    } else {
+      grid.insertAdjacentHTML('beforeend', html);
+    }
+
+    document.getElementById('resultCount').textContent = `${data.total} produit(s) trouvé(s)`;
+    document.getElementById('loadMoreBtn').classList.toggle('hidden', currentPage >= data.pages);
+  }
+
+  function loadMore() { currentPage++; loadProducts(false); }
+
+  function selectCat(el, cat) {
+    currentCat = cat; currentBadge = '';
+    document.querySelectorAll('.sidebar-item[data-cat]').forEach(i => i.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item[data-badge]').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+    loadProducts();
+  }
+
+  function selectBadge(el, badge) {
+    currentBadge = el.classList.contains('active') ? '' : badge;
+    document.querySelectorAll('.sidebar-item[data-badge]').forEach(i => i.classList.remove('active'));
+    if (currentBadge) el.classList.add('active');
+    loadProducts();
+  }
+
+  function debounceSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(loadProducts, 400);
+  }
+
+  loadProducts();
+</script>
+</body>
+</html>
