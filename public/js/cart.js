@@ -2,7 +2,7 @@
    243MARKET — cart.js  (Commande via WhatsApp)
    ══════════════════════════════════════════════════════ */
 
-const WHATSAPP_NUMBER = '243860944864';
+const WHATSAPP_NUMBER = '243844699695';
 
 document.addEventListener('DOMContentLoaded', () => {
   renderCart();
